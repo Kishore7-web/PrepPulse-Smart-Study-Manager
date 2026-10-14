@@ -1,0 +1,4 @@
+-- PrepPulse uses Hibernate DDL auto-update for its demo database.
+-- These are logical entities: study_tasks, study_topics, focus_sessions,
+-- study_settings, reminder_deliveries. Do not execute this reference file;
+-- Hibernate creates and evolves the H2 tables at startup.

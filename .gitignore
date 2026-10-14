@@ -1,0 +1,7 @@
+target/
+data/
+.tools/
+.idea/
+.vscode/
+*.iml
+.env

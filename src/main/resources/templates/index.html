@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#6e5ce7">
+  <title>PrepPulse | Smart Study Manager</title>
+  <link rel="stylesheet" th:href="@{/styles.css}">
+</head>
+<body th:attr="data-latest-reminder=${latestReminderId}">
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">P</div><div><strong>PrepPulse</strong><small>SMART STUDY MANAGER</small></div></div>
+    <nav>
+      <a class="nav-item active" href="#top">▦ <span>Dashboard</span></a>
+      <a class="nav-item" href="#tasks">☷ <span>Study tasks</span></a>
+      <a class="nav-item" href="#focus">◷ <span>Focus room</span></a>
+      <a class="nav-item" href="#revision">↻ <span>Revision lab</span></a>
+      <a class="nav-item" href="#rescue">✦ <span>Smart rescue</span></a>
+      <a class="nav-item" href="#settings">⚙ <span>Preferences</span></a>
+    </nav>
+    <div class="side-note"><span class="spark">✦</span><strong>Small steps add up.</strong><p>PrepPulse helps you remember deadlines, protect your focus, and recover when plans change.</p></div>
+    <div class="side-footer">Made for focused learning ✦</div>
+  </aside>
+  <main class="main" id="top">
+    <header class="topbar"><div><span class="eyebrow">YOUR PERSONAL STUDY SPACE</span><h1>Good work starts with a plan.</h1><p>Make today count. Keep your next step clear.</p></div><div class="date-pill" id="today"></div></header>
+    <div class="alert success" th:if="${successMessage}" th:text="${successMessage}"></div>
+    <div class="alert error" th:if="${errorMessage}" th:text="${errorMessage}"></div>
+    <section class="welcome-card">
+      <div><span class="welcome-label">YOUR STUDY JOURNEY</span><h2>Progress over pressure. 🌱</h2><p>Plan realistically. Study in small blocks. Come back without guilt.</p><a href="#add-task" class="button button-light">＋ Plan a study task</a></div>
+      <div class="ring-wrap"><div class="progress-ring" th:style="${'--progress:' + stats.completionPercent + '%'}"><div><strong th:text="${stats.completionPercent} + '%'">0%</strong><small>COMPLETED</small></div></div></div>
+    </section>
+
+    <section class="stats-grid">
+      <article class="stat-card"><div class="stat-top"><span>Total tasks</span><span class="stat-icon purple">▦</span></div><strong th:text="${stats.totalTasks}">0</strong><small>Everything on your list</small></article>
+      <article class="stat-card"><div class="stat-top"><span>Completed</span><span class="stat-icon green">✓</span></div><strong th:text="${stats.completedTasks}">0</strong><small>Every finished step counts</small></article>
+      <article class="stat-card"><div class="stat-top"><span>Still to do</span><span class="stat-icon blue">◷</span></div><strong th:text="${stats.pendingTasks}">0</strong><small>One task at a time</small></article>
+      <article class="stat-card"><div class="stat-top"><span>Study time left</span><span class="stat-icon orange">◴</span></div><strong><span th:text="${stats.plannedMinutes / 60}">0</span><small class="unit">h</small> <span th:text="${stats.plannedMinutes % 60}">0</span><small class="unit">m</small></strong><small>Estimated time for pending tasks</small></article>
+    </section>
+    <div class="alert workload-warning" id="workloadWarning" th:if="${stats.plannedMinutes > settings.dailyAvailableMinutes}"><strong>⚠ Your pending workload is larger than your daily budget.</strong> Your task list has <span th:text="${stats.plannedMinutes}">0</span> minutes of unfinished work, while your daily study budget is <span th:text="${settings.dailyAvailableMinutes}">180</span> minutes. Smart Rescue can help you choose a realistic first step.</div>
+
+    <section class="panel recommendation-panel" id="next-step">
+      <div class="panel-heading"><div><span class="eyebrow">YOUR NEXT BEST MOVE</span><h2>Smart priority suggestions</h2></div><span class="count-badge">Rule-based · No paid AI required</span></div>
+      <p class="muted intro">PrepPulse ranks unfinished tasks by deadline, importance, time needed, and how often they were postponed.</p>
+      <div class="recommendation-grid" th:if="${!#lists.isEmpty(recommended)}">
+        <article class="recommendation-card" th:each="rec,iter : ${recommended}">
+          <span class="rec-number" th:text="${iter.index + 1}">01</span>
+          <div class="rec-copy"><strong th:text="${rec.task.title}">Task</strong><small th:text="${rec.task.subject + ' · ' + rec.task.estimatedMinutes + ' min'}">Subject · 30 min</small>
+            <div class="reason-tags"><span th:each="reason : ${rec.reasons}" th:text="${reason}">Due soon</span></div></div>
+          <form th:action="@{/tasks/{id}/toggle(id=${rec.task.id})}" method="post"><button class="mini-action" type="submit">Done ✓</button></form>
+        </article>
+      </div>
+      <p class="muted" th:if="${#lists.isEmpty(recommended)}">Nothing waiting on your list. Add a task when your next study goal is ready.</p>
+    </section>
+
+    <div class="content-grid">
+      <section class="panel tasks-panel" id="tasks">
+        <div class="panel-heading"><div><span class="eyebrow">STAY ON TRACK</span><h2>Your study tasks</h2></div><span class="count-badge" th:text="${stats.pendingTasks} + ' pending'">0 pending</span></div>
+        <div class="empty-state" th:if="${#lists.isEmpty(tasks)}"><div>✎</div><h3>Your list starts here</h3><p>Add your first study task to see it here.</p></div>
+        <div class="task-list" th:unless="${#lists.isEmpty(tasks)}">
+          <article class="task-row" th:each="task : ${tasks}" th:classappend="${task.completed} ? ' is-complete' : ''">
+            <form th:action="@{/tasks/{id}/toggle(id=${task.id})}" method="post"><button class="check-button" th:classappend="${task.completed} ? ' checked' : ''" th:aria-label="${task.completed} ? 'Mark incomplete' : 'Mark complete'" th:text="${task.completed} ? '✓' : ''"></button></form>
+            <div class="task-info"><strong th:text="${task.title}">Task title</strong><div class="task-meta"><span th:text="${task.subject}">Subject</span><span>·</span><span th:text="${task.estimatedMinutes} + ' min'">30 min</span><span>·</span><span th:text="${#temporals.format(task.dueDate, 'dd MMM') + ' at ' + #temporals.format(task.dueTime, 'HH:mm')}">Date</span><span th:if="${task.postponedCount > 0}" class="postponed-label" th:text="${'Postponed ' + task.postponedCount + '×'}">Postponed</span></div><p class="task-notes" th:if="${task.notes != null and !task.notes.isBlank()}" th:text="${task.notes}"></p>
+              <details class="edit-details"><summary>Edit task</summary><form th:action="@{/tasks/{id}/edit(id=${task.id})}" method="post" class="inline-edit-form">
+                <label>Task name<input name="title" th:value="${task.title}" required maxlength="120"></label><label>Subject<input name="subject" th:value="${task.subject}" required maxlength="80"></label>
+                <div class="form-two"><label>Due date<input type="date" name="dueDate" th:value="${task.dueDate}" required></label><label>Due time<input type="time" name="dueTime" th:value="${task.dueTime}" required></label></div>
+                <div class="form-two"><label>Priority<select name="priority"><option value="LOW" th:selected="${task.priority.name() == 'LOW'}">Low</option><option value="MEDIUM" th:selected="${task.priority.name() == 'MEDIUM'}">Medium</option><option value="HIGH" th:selected="${task.priority.name() == 'HIGH'}">High</option></select></label><label>Minutes<input type="number" name="estimatedMinutes" th:value="${task.estimatedMinutes}" min="5" max="720" required></label></div>
+                <label>Notes<textarea name="notes" th:text="${task.notes}" rows="2" maxlength="1000"></textarea></label><input type="hidden" name="reminderIntervals" value="1440,60,15"><input type="hidden" name="_reminderEnabled" value="on"><label class="check-label"><input type="checkbox" name="reminderEnabled" value="true" th:checked="${task.reminderEnabled}"> Keep automatic reminders</label><button class="button button-primary" type="submit">Save changes</button>
+              </form></details></div>
+            <span class="priority" th:classappend="${#strings.toLowerCase(task.priority)}" th:text="${task.priority}">MEDIUM</span>
+            <form th:if="${!task.completed}" th:action="@{/tasks/{id}/postpone(id=${task.id})}" method="post" class="inline-form"><input type="hidden" name="days" value="1"><button class="icon-action" type="submit" title="Move deadline one day later" aria-label="Postpone one day">↗</button></form>
+            <form th:action="@{/tasks/{id}/delete(id=${task.id})}" method="post"><button class="delete-button" aria-label="Delete task" title="Delete task">×</button></form>
+          </article>
+        </div>
+      </section>
+
+      <aside class="right-column">
+        <section class="panel add-panel" id="add-task">
+          <div class="panel-heading"><div><span class="eyebrow">MAKE A PLAN</span><h2>Add study task</h2></div></div>
+          <form th:action="@{/tasks}" th:object="${newTask}" method="post" class="task-form">
+            <label>Task name<input th:field="*{title}" placeholder="e.g. Revise Java OOP" required maxlength="120"></label><small class="field-error" th:if="${#fields.hasErrors('title')}" th:errors="*{title}"></small>
+            <label>Subject<input th:field="*{subject}" placeholder="e.g. Java Programming" required maxlength="80"></label><small class="field-error" th:if="${#fields.hasErrors('subject')}" th:errors="*{subject}"></small>
+            <div class="form-two"><label>Due date<input type="date" th:field="*{dueDate}" required></label><label>Due time<input type="time" th:field="*{dueTime}" required></label></div>
+            <label>Priority<select th:field="*{priority}"><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option></select></label>
+            <label>Estimated study time (minutes)<input type="number" th:field="*{estimatedMinutes}" min="5" max="720" required></label>
+            <label>Notes <span class="optional">(optional)</span><textarea th:field="*{notes}" rows="2" maxlength="1000" placeholder="What do you need to cover?"></textarea></label>
+            <div class="reminder-choice"><label class="check-label"><input type="checkbox" th:field="*{reminderEnabled}"> Enable automatic reminders</label><small>Pick the alerts that matter to you:</small><div class="choice-row"><label><input class="reminder-offset" type="checkbox" value="1440" checked> 1 day</label><label><input class="reminder-offset" type="checkbox" value="60" checked> 1 hour</label><label><input class="reminder-offset" type="checkbox" value="15" checked> 15 min</label></div><input type="hidden" th:field="*{reminderIntervals}" id="reminderIntervals"></div>
+            <button class="button button-primary full-button" type="submit">＋ Add to my plan</button>
+          </form>
+        </section>
+        <section class="panel upcoming-panel"><div class="panel-heading"><div><span class="eyebrow">COMING UP</span><h2>Next deadlines</h2></div></div>
+          <div class="upcoming-item" th:each="task : ${upcoming}"><span class="upcoming-dot"></span><div><strong th:text="${task.title}">Task</strong><small th:text="${task.subject + ' · ' + #temporals.format(task.dueTime, 'HH:mm')}">Subject</small></div><time th:text="${#temporals.format(task.dueDate, 'dd MMM')}">Date</time></div>
+          <p class="muted" th:if="${#lists.isEmpty(upcoming)}">No upcoming deadlines. Enjoy the breathing room!</p>
+        </section>
+      </aside>
+    </div>
+
+    <section class="feature-grid">
+      <section class="panel focus-panel" id="focus">
+        <div class="panel-heading"><div><span class="eyebrow">FOCUS ROOM</span><h2>One thing at a time</h2></div><span class="count-badge">Timer</span></div>
+        <p class="muted">Start a focus block, save the session, and build a record of your real study time.</p>
+        <div class="timer-face"><span id="timerDisplay">25:00</span><small id="timerState">READY WHEN YOU ARE</small></div>
+        <div class="timer-controls"><label>Session<select id="focusType"><option value="FOCUS" data-minutes="25">Focus · 25 min</option><option value="FOCUS" data-minutes="50">Deep focus · 50 min</option><option value="BREAK" data-minutes="5">Short break · 5 min</option><option value="BREAK" data-minutes="15">Long break · 15 min</option></select></label><label>Link to task<select id="focusTask"><option value="">General study</option><option th:each="task : ${tasks}" th:if="${!task.completed}" th:value="${task.id}" th:text="${task.title}">Task</option></select></label></div>
+        <div class="timer-buttons"><button class="button button-primary" id="timerStart">▶ Start</button><button class="button button-outline" id="timerPause" disabled>Ⅱ Pause</button><button class="button button-outline" id="timerReset">↺ Reset</button></div>
+        <p class="timer-hint" id="timerHint">A saved session counts toward your study insights.</p>
+      </section>
+      <section class="panel insight-panel" id="insights">
+        <div class="panel-heading"><div><span class="eyebrow">YOUR STUDY PATTERNS</span><h2>Personal insights</h2></div></div>
+        <div class="insight-metrics"><div><strong th:text="${insights.todayMinutes}">0</strong><span>min today</span></div><div><strong th:text="${insights.weekMinutes}">0</strong><span>min this week</span></div><div><strong th:text="${insights.weekSessions}">0</strong><span>focus sessions</span></div></div>
+        <h3 class="subheading">Subjects this week</h3>
+        <div class="subject-bars" th:if="${!#lists.isEmpty(insights.subjectMinutes)}"><div class="subject-bar" th:each="subject : ${insights.subjectMinutes}"><div><span th:text="${subject.subject}">Subject</span><strong th:text="${subject.minutes} + ' min'">0 min</strong></div><div class="bar-track"><span th:style="${'width:' + (insights.weekMinutes == 0 ? 0 : T(java.lang.Math).min(100, subject.minutes * 100 / insights.weekMinutes)) + '%'}"></span></div></div></div>
+        <p class="muted" th:if="${#lists.isEmpty(insights.subjectMinutes)}">Your subject breakdown appears here after you save focus sessions.</p>
+        <div class="insight-foot"><span>Tasks postponed</span><strong th:text="${insights.postponedTasks}">0</strong><span>Reviews due</span><strong th:text="${insights.dueReviews}">0</strong></div>
+      </section>
+    </section>
+
+    <section class="feature-grid second-row">
+      <section class="panel revision-panel" id="revision">
+        <div class="panel-heading"><div><span class="eyebrow">REMEMBER WHAT YOU LEARN</span><h2>Revision lab</h2></div><span class="count-badge" th:text="${#lists.size(dueReviews) + ' due today'}">0 due today</span></div>
+        <p class="muted">Add a topic once. PrepPulse schedules review gaps and adjusts the next interval using how difficult the topic feels.</p>
+        <form th:action="@{/topics}" th:object="${newTopic}" method="post" class="topic-form">
+          <input th:field="*{title}" placeholder="Topic to remember" required maxlength="120"><input th:field="*{subject}" placeholder="Subject" required maxlength="80"><select th:field="*{difficulty}" aria-label="Topic difficulty"><option value="EASY">Easy</option><option value="MEDIUM">Medium</option><option value="HARD">Hard</option></select><button class="button button-primary" type="submit">＋ Add topic</button>
+        </form>
+        <div class="topic-list"><article class="topic-row" th:each="topic : ${topics}"><div class="topic-dot" th:classappend="${topic.difficulty == T(com.preppulse.model.StudyTopic.Difficulty).HARD ? ' hard' : (topic.difficulty == T(com.preppulse.model.StudyTopic.Difficulty).EASY ? ' easy' : '')}"></div><div class="topic-info"><strong th:text="${topic.title}">Topic</strong><small th:text="${topic.subject + ' · ' + topic.difficulty + ' · reviewed ' + topic.reviewCount + ' time(s)'}"></small><small th:text="${topic.nextReviewDate.isBefore(T(java.time.LocalDate).now()) or topic.nextReviewDate.isEqual(T(java.time.LocalDate).now()) ? 'Due for review now' : 'Next review: ' + #temporals.format(topic.nextReviewDate, 'dd MMM')}"></small></div><form th:action="@{/topics/{id}/reviewed(id=${topic.id})}" method="post"><button class="mini-action" type="submit">Reviewed ✓</button></form><form th:action="@{/topics/{id}/archive(id=${topic.id})}" method="post"><button class="delete-button" type="submit" title="Archive topic">×</button></form></article></div>
+        <p class="muted" th:if="${#lists.isEmpty(topics)}">Add a topic to begin spaced revision.</p>
+      </section>
+      <section class="panel rescue-panel" id="rescue">
+        <div class="panel-heading"><div><span class="eyebrow">PLAN B, WITHOUT THE PANIC</span><h2>Smart Rescue Mode</h2></div><span class="rescue-icon">✦</span></div>
+        <p>Only have a little time? PrepPulse builds a short plan from your most urgent tasks. It splits big jobs into manageable blocks and adds breaks where possible.</p>
+        <form id="rescueForm" class="rescue-form"><label>Available time today <div class="available-input"><input type="number" id="availableMinutes" min="5" max="720" th:value="${settings.dailyAvailableMinutes}" required><span>minutes</span></div></label><button class="button button-primary full-button" type="submit">Build my recovery plan</button><button class="button button-outline full-button" type="button" id="comebackButton">I fell behind · 15-minute comeback</button></form>
+        <div id="rescueResult" class="rescue-result" aria-live="polite"><p class="muted">Your plan will appear here. It is a suggestion, not a judgment.</p></div>
+      </section>
+    </section>
+
+    <section class="panel reminders-panel" id="reminders">
+      <div class="panel-heading"><div><span class="eyebrow">DON'T LET IMPORTANT THINGS SLIP</span><h2>Reminder activity</h2></div><button type="button" class="mini-action" id="enableNotifications">Enable browser alerts</button></div>
+      <p class="muted">The application checks reminders while it is running. Browser alerts need permission and this dashboard open. Email requires the optional SMTP setup in the README.</p>
+      <div class="reminder-list" th:if="${!#lists.isEmpty(recentReminders)}"><article class="reminder-row" th:each="reminder : ${recentReminders}"><span class="reminder-bell">♧</span><div><strong th:text="${reminder.taskTitle}">Task</strong><small th:text="${reminder.message}">Reminder detail</small></div><span class="channel-badge" th:text="${reminder.channel}">IN_APP</span><time th:text="${#temporals.format(reminder.sentAt, 'dd MMM HH:mm')}">Date</time></article></div>
+      <p class="muted" th:if="${#lists.isEmpty(recentReminders)}">No reminders recorded yet. Add a task with a future deadline to test this feature.</p>
+    </section>
+
+    <section class="panel settings-panel" id="settings">
+      <div class="panel-heading"><div><span class="eyebrow">MAKE IT FIT YOUR DAY</span><h2>Study preferences & reminders</h2></div></div>
+      <form th:action="@{/settings}" th:object="${settings}" method="post" class="settings-form">
+        <label>Available study time per day <div class="available-input"><input type="number" th:field="*{dailyAvailableMinutes}" min="15" max="960" required><span>minutes</span></div></label>
+        <label>Your email for reminders<input type="email" th:field="*{studentEmail}" placeholder="you@example.com"><small>Used only if SMTP email reminders are configured.</small></label>
+        <label class="check-label"><input type="checkbox" th:field="*{remindersEnabled}"> Enable automatic reminder checks</label>
+        <div class="partner-box"><label>Study partner email <span class="optional">(optional)</span><input type="email" th:field="*{trustedPartnerEmail}" placeholder="partner@example.com"></label><label class="check-label"><input type="checkbox" th:field="*{trustedPartnerEnabled}"> Send my selected reminders to this partner</label><small>Only enable this after asking your partner. Reminders include task titles and subjects.</small></div>
+        <button class="button button-primary" type="submit">Save preferences</button>
+      </form>
+    </section>
+    <footer>PrepPulse <span>•</span> Plan clearly. Study steadily. Grow daily.</footer>
+  </main>
+</div>
+<div id="toastHost" class="toast-host" aria-live="polite" aria-atomic="true"></div>
+<script th:src="@{/app.js}" defer></script>
+</body></html>
